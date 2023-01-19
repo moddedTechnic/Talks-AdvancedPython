@@ -212,5 +212,26 @@ notes:
 
 # Local
 
+The enclosing function or class <!-- element class="fragment" -->
+
 notes:
 - Then, there's the local scope
+	- This is the class or function which contains the statement
+
+---
+
+# Functions
+
+notes:
+- Statements can then be combined into functions
+
+---
+
+```python
+def foo(a, b, c):
+	d = a + b
+	return (d + c) / d
+```
+
+notes:
+- Whilst statements are the building blocks, functions are a 
