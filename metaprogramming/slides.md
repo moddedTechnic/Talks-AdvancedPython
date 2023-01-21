@@ -19,7 +19,9 @@ f7f7f7 background slide colour
 %%
 
 
-# TITLE SLIDE
+# Advanced Python
+
+#### Decorators and Metaclasses and Descriptors &mdash; Oh My!
 
 ---
 
@@ -228,10 +230,131 @@ notes:
 ---
 
 ```python
-def foo(a, b, c):
-	d = a + b
-	return (d + c) / d
+class List:
+	def __init__(self, *items):
+		self.items = items
+	def __iter__(self):
+		return iter(self.items)
+
+def linear_search(sequence: List, target: int) -> int:
+	for index, item in enumerate(sequence):
+		if item == target:
+			return index
+	return -1
+
+arr = List(1, 2, 3, 4, 5)
+print(linear_search(arr, 4))
 ```
 
 notes:
-- Whilst statements are the building blocks, functions are a 
+- Whilst statements are the building blocks, functions are the smallest units which can be easily manipulated
+
+---
+
+```python
+def add(x, y=0):
+	return x + y
+
+>>> add(1, 2)
+3
+>>> add(x=3, y=4)
+7
+>>> add(5)
+5
+```
+
+notes:
+- Functions can be called with either positional or keyword arguments
+- We can supply default values for arugments
+
+---
+
+```python
+def append(item, array=[]):
+	array.append(item)
+	return array
+
+>>> arr = []
+>>> append(6, arr)
+[6]
+>>> append(7, arr)
+[6, 7]
+```
+
+notes:
+- We must be careful with default arguments
+
+---
+
+```python[5-8]
+def append(item, array=[]):
+	array.append(item)
+	return array
+
+>>> append(6)
+[6]
+>>> append(7)
+[6, 7]
+```
+
+notes:
+- We must be careful with default arguments as they're set at definition time
+
+---
+
+```python[1-3,7-11]
+def append(item, array=None):
+	if array is None:
+		array = []
+	array.append(item)
+	return array
+
+>>> append(6)
+[6]
+>>> append(7)
+[7]
+```
+
+notes:
+- Instead we can use something immutable to mark the default
+
+---
+
+```python
+def compute(pos_only, /, pos, *args, kwd_only, **kwargs):
+	print(pos_only, pos, args, kwd_only, kwargs)
+
+>>> compute(0, 1, 2, 3, kwd_only=4, a=5, b=6)
+0 1 (2, 3) 4 {'a': 5, 'b': 6}
+```
+
+notes:
+- We can restrict arguments to be passes only positionally (before the `/`), or only by keyword (between `*args` and `**kwargs`)
+- We can also collect positional and keyword arguments with `*` and `**` respectively
+
+---
+
+### Closures
+
+```python
+def create_adder(x):
+	z = 0
+	def add(y):
+		nonlocal z
+		z += 1
+		return x + y + z
+	return add
+
+>>> add_two = create_adder(2)
+>>> add_two(3)
+5
+>>> add_two(3)
+6
+```
+
+notes:
+- In Python, functions are first class objects
+- This means we can pass them around and return them from other functions
+- Local variables are captured by inner functions
+
+---

@@ -1,6 +1,8 @@
 
 # Title Slide
 
+- Decorators and Metaclasses and Descriptors &mdash; Oh My!
+
 # Requirements
 #TODO check requirements & add links
 - Python 3.3 minimum
