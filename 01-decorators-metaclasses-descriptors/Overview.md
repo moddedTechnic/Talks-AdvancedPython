@@ -87,7 +87,7 @@ def add(x, y):
 More functions to debug
 - `add`
 - `sub`
-- `mul
+- `mul`
 - `div`
 
 Lots of repeated code

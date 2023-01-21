@@ -251,7 +251,7 @@ notes:
 
 ---
 
-```python
+```python[1-2|4-5|6-7|1,8-9]
 def add(x, y=0):
 	return x + y
 
@@ -267,26 +267,10 @@ notes:
 - Functions can be called with either positional or keyword arguments
 - We can supply default values for arugments
 
----
-
-```python
-def append(item, array=[]):
-	array.append(item)
-	return array
-
->>> arr = []
->>> append(6, arr)
-[6]
->>> append(7, arr)
-[6, 7]
-```
-
-notes:
-- We must be careful with default arguments
 
 ---
 
-```python[5-8]
+```python[1-3|5-6|7-8]
 def append(item, array=[]):
 	array.append(item)
 	return array
@@ -302,7 +286,7 @@ notes:
 
 ---
 
-```python[1-3,7-11]
+```python[1-3|7-8|9-10]
 def append(item, array=None):
 	if array is None:
 		array = []
@@ -336,7 +320,7 @@ notes:
 
 ### Closures
 
-```python
+```python[1-7|9|10-11|12-13]
 def create_adder(x):
 	z = 0
 	def add(y):
@@ -358,3 +342,75 @@ notes:
 - Local variables are captured by inner functions
 
 ---
+
+# Classes
+
+notes:
+- For the most part classes in Python are wrappers around dictionaries
+
+---
+
+```python[1-13|5|2|4-5]
+class Foo:
+	bar = 0
+
+	def __init__(self, baz):
+		self.baz = baz
+
+	@classmethod
+	def from_string(cls, string):
+		return cls(cls.parse_string(string))
+
+	@staticmethod
+	def parse_string(string):
+		return int(string.replace('_', ''), 16)
+```
+
+notes:
+- In classes, we can attach variables to the instance or the class itself.
+- Similarly, we can create instance methods, taking `self` as the first paramter, refering to the instance of the object the method was called on
+
+---
+
+```python[2-3|4-5|8-9]
+class OtherSelf:
+	def do_something(this, a, b, c):
+		...
+
+	def do_something_else(x, y, z):
+		...
+
+	def do_another_thing(self, sequence, item):
+		...
+```
+
+notes:
+- Side note: there's no requirement in Python to call this parameter `self`, so we _could_ adopt a similar standard to Java, C++, and others, and call this parameter `this`
+- We _could_ even go crazy and make this name indistinguishable from the other parameters, though this is generally a bad idea
+- However, it's always a good idea to name things well and part of that is conforming to expectations:
+	- If you have one or two Python files in a large project in a  `this`-based language, calling it `this` is probably acceptable
+	- If you're writing pure Python, `self` is a better choice
+
+---
+
+```python[7-9|11-13|4-5]
+class Foo:
+	bar = 0
+
+	def __init__(self, baz):
+		self.baz = baz
+
+	@classmethod
+	def from_string(cls, string):
+		return cls(cls.parse_string(string))
+
+	@staticmethod
+	def parse_string(string):
+		return int(string.replace('_', ''), 16)
+```
+
+notes:
+- We can also use the `classmethod` decorator to attach the method not to an instance but the class.
+	- We then use `cls` (short for class) as the first parameter, which refers to the type
+- Finally, we can make the method static with the `staticmethod` decorator.
+	- The method then has no reference to either the associated object or type
