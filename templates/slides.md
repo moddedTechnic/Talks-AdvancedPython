@@ -1,3 +1,7 @@
+---
+highlightTheme: monokai
+---
+
 <style>
 :root {
 	--r-code-font: "JetBrains Mono";
@@ -14,4 +18,3 @@ f7f7f7 background slide colour
 
 %%
 
----
