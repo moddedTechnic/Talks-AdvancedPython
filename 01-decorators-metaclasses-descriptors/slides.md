@@ -29,11 +29,11 @@ f7f7f7 background slide colour
 
 Python 3.3
 
-[github.com/moddedTechnic/Talks-LibraryDev](https://github.com/moddedTechnic/Talks-LibraryDev)
+[talks.leeming.dev](https://talks.leeming.dev/)
 
 notes:
-	#TODO fill in GitHub link
-	#TODO check Python version
+- #TODO fill in GitHub link
+- #TODO check Python version
 
 ---
 
@@ -414,3 +414,26 @@ notes:
 	- We then use `cls` (short for class) as the first parameter, which refers to the type
 - Finally, we can make the method static with the `staticmethod` decorator.
 	- The method then has no reference to either the associated object or type
+- Looking back at the `init` method, we see an example of so-called "dunder" methods (short for **d**ouble **under**score), which let us customise almost all parts of a class
+
+---
+
+```python
+class Base:
+	pass
+
+class Child(Base):
+	pass
+
+class Grandchild(Child):
+	pass
+
+class Sibling(Base):
+	pass
+
+class Multiple(Sibling, Grandchild):
+	pass
+```
+
+notes:
+- 
