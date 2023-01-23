@@ -437,3 +437,78 @@ class Multiple(Sibling, Grandchild):
 
 notes:
 - 
+
+
+---
+
+# Basics
+
+notes:
+- Let's introduce the motivating example for this part of the talk: debugging.
+
+---
+
+```python
+def add(x, y):
+	return x + y
+```
+
+notes:
+- We've all been there, we have a reasonably complex project with lots of interconnect modules and function calls
+- And something doesn't work.
+
+---
+
+```python
+def add(x, y):
+	print(f'Calling add with arguments `x={x}` and `y={y}`')
+	result = x + y
+	print(f'add returned `{result}`')
+	return result
+```
+
+notes:
+- To try and solve the problem, we decide to add functionality to log the values passed to and returned from functions
+
+---
+
+```python
+def sub(x, y):
+	print(f'Calling sub with arguments `x={x}` and `y={y}`')
+	result = x + y
+	print(f'sub returned `{result}`')
+	return result
+```
+
+notes:
+- Let's add logging to our `sub` function as well.
+- It's almost identical to the logging code in the `add` function...
+
+---
+
+```python
+def mul(x, y):
+	...
+
+def div(x, y):
+	...
+
+def mod(x, y):
+	...
+```
+
+notes:
+- We've got lots of functions we want to add debug information to - and this is just in our maths module
+- As the logging code is almost identical, it would be nice to abstract this away
+
+---
+
+# Decorators
+
+notes:
+
+
+
+- searx
+
+- 
