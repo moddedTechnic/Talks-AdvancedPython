@@ -506,9 +506,9 @@ notes:
 # Decorators
 
 notes:
+- Decorators modify the behaviour of functions
+- They originate from a pattern in the book Design Patterns: Elements of Reusable Object-Oriented Software, also known as the Gang of Four book
+- Python has adopted them into the language
 
 
-
-- searx
-
-- 
+- tt
