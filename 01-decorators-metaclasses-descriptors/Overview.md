@@ -473,13 +473,14 @@ class Person(Structure):
 	- Override `__set__`
 		- Checks the new value is an instance of `self.typ`
 		- If the check passes, call `super().__set__(instance, value)`
-- Specialized subclasses of `Typed`, overriding `typ`
-|        |     |
-| ---    | --- |
-| `Integer` | `int` |
-| `Float` | `float` |
-| `String` | `str` |
-| `List` | `list` |
+- Specialised subclasses of `Typed`, overriding `typ`
+
+| `Typed`   | `type`  | 
+| --------- | ------- |
+| `Integer` | `int`   |
+| `Float`   | `float` |
+| `String`  | `str`   |
+| `List`    | `list`  |
 
 ### Usage
 ```python
@@ -500,6 +501,7 @@ class Positive(Descriptor):
 ```
 
 - We can then use this as a mixin class
+
 |     |     |     |
 | --- | --- | --- |
 | `PositiveInteger` | `Integer` | `Positive` |

@@ -1196,3 +1196,343 @@ notes:
 
 ---
 
+```python
+>>> h = Host('127.0.0.1', 8080)
+>>> h.address = 42
+>>> h.port = 80 + 80j
+```
+
+notes:
+- We still have a couple of issues, the biggest being one inherent to Python.
+	- If something waddles like a duck, swims like a duck, quacks like a duck even, it must be a duck, surely?
+
+---
+
+![[duck-dog.png]]
+
+notes:
+- Err... thanks DallE?
+- Maybe we should just use Rust?
+
+---
+
+# `@property`
+
+notes:
+- We can use the property decorator to specify getters and setters, which will allow us to enforce type checking.
+
+---
+
+```python
+class Host(Structure):
+	__fields__ = ['address', 'port']
+
+	@property
+	def port(self):
+		return self._port
+
+	@port.setter
+	def port(self, value):
+		assert isinstance(value, int)
+		assert 0 <= value < 2**16
+		self._port = value
+```
+
+notes:
+- This code is much safer.
+- Whenever we try to set the value of `port`, we check to make sure it's an integer, and in range.
+- If this is the case, we set `_port` to `value`.
+- Whilst external code could alter the value of `_port` directly, it's convention in Python to mark non-public members of a class by prefixing their name with an underscore.
+
+- We now have a new issue: this change has introduced an enormous amount of boilerplate.
+	- Every field needs a near-identical getter to be defined.
+	- The setters also contain an enormous amount of duplication.
+- Can we simplify this some how?
+
+---
+
+# Descriptors
+
+notes:
+- Introducing, descriptors!
+- This is the feature which properties use to work.
+- Like most things in Python, we can make our own.
+
+---
+
+```python
+class Descriptor:
+	def __get__(self, instance, cls=None, /):
+		...
+
+	def __set__(self, instance, value, /):
+		...
+
+	def __delete__(self, instance, /):
+		...
+```
+
+notes:
+- A descriptor is a class which defines at least one of these methods.
+- As the names suggest, `__get__` allows us to control getting the member, `__set__` setting it, and `__delete__` deleting it
+
+---
+
+```python
+>>> class Foo:
+...     x = Descriptor()
+...     
+>>> f = Foo()
+>>> f.x          # x.__get__(f, Foo)
+>>> f.x = value  # x.__set__(f, value)
+>>> del f.x      # x.__delete__(f)
+```
+
+notes:
+- Descriptors only work if they are used as members of a class.
+- Here we can see the calls that get made when we apply certain operations to a descriptor.
+- n.b., this is also how `classmethod`'s and `staticmethod`'s are implemented
+
+---
+
+```python[1-14|5-8|13-14]
+class Descriptor:
+	def __init__(self, name=None):
+		self.name = name
+
+	def __get__(self, instance, cls=None, /):
+		if instance is None:
+			return self
+		return instance.__dict__[self.name]
+
+	def __set__(self, instance, value, /):
+		instance.__dict__[self.name] = value
+
+	def __delete__(self, instance, /):
+		del instance.__dict__[self.name]
+```
+
+notes:
+- Here, we create a simple descriptor which implements fairly standard behaviour.
+- When we want to get, set, or delete an item, we do just that.
+- If the `__get__` method simply returns the appropriate value from `instance.__dict__`, Python can provide it for us.
+- Returning to our `Structure` example, we probably don't want users to be able to delete fields from structures.
+
+---
+
+```python
+class Descriptor:
+	def __init__(self, name=None):
+		self.name = name
+
+	def __set__(self, instance, value, /):
+		instance.__dict__[self.name] = value
+
+	def __delete__(self, instance, /):
+		raise AttributeError(f"Can't delete `{self.name}`")
+```
+
+```python
+class Host(Structure):
+	__fields__ = ['address', 'port']
+	address = Descriptor('address')
+	port = Descriptor('port')
+```
+
+notes:
+- We've started laying the groundwork for typing: there's still some unnecessary code, but we'll clean that up in a bit.
+- We can now start to build the components to enable us to have effective type checking
+
+---
+
+```python
+class Typed(Descriptor):
+	typ = object
+
+	def __set__(self, instance, value, /):
+		assert isinstance(value, self.typ)
+		super().__set__(instance, value)
+```
+
+```python
+class Integer(Typed):
+	typ = int
+
+class Float(Typed):
+	typ = float
+
+class String(Typed):
+	typ = str
+```
+
+notes:
+- The `Typed` descriptor is quite simple, checking that the value is the right type and then handing off control to the super class
+- We create a variety of subclasses of `Typed`, which just specify different values of `typ`.
+
+---
+
+```python
+class Host(Structure):
+	__fields__ = ['address', 'port']
+	address = String('address')
+	port = Integer('port')
+```
+
+notes:
+- Usage is then quite simple, we just replace the occurrences of `Descriptor` with the appropriate subclass of `Typed`.
+
+---
+
+```python
+class Positive(Descriptor):
+	def __set__(self, instance, value, /):
+		assert value >= 0
+		super().__set__(instance, value)
+
+class PositiveInteger(Integer, Positive):
+	pass
+	
+class PositiveFloat(Float, Positive):
+	pass
+```
+
+notes:
+- We can also start to build descriptors to perform value checks.
+- Using multiple inheritance, we can begin to combine type- and value-checks.
+	- It's important to note that order matters here: we want first to check that the value is of the correct type, otherwise the value checks may return cryptic errors
+	- e.g. `TypeError: '>' not supported between instances of 'str' and 'int'`
+- How does Python work out this order?
+
+---
+
+# Method Resolution Order
+
+## `__mro__` <!-- element class="fragment" -->
+
+notes:
+- To determine this, Python uses the method resolution order, or `mro` for short.
+- Instead of laying out concrete rules for how this is created, we'll look at an example which should make it clear how Python is able to generate the MRO
+
+---
+
+#TODO re-add angle brackets round split
+split even gap="1"
+
+```python
+class PositiveInteger(Integer, Positive):
+	pass
+
+>>> PositiveInteger.__mro__
+(
+	<class 'PositiveInteger'>,
+	<class 'Integer'>,
+	<class 'Typed'>,
+	<class 'Positive'>,
+	<class 'Descriptor'>,
+	<class 'object'>
+)
+```
+
+```mermaid
+stateDiagram-v2
+	object --> Descriptor
+	Descriptor --> Typed
+	Descriptor --> Positive
+	Typed --> Integer
+	Integer --> PositiveInteger
+	Positive --> PositiveInteger
+```
+</split>
+
+notes:
+- We've got the `PositiveInteger` class from before.
+- On the left, we have the method resolution order, on the right a diagram showing the inheritance graph
+- `PositiveInteger` comes first in the MRO, then `Integer`, because we put that first.
+- `Typed` comes next, because it's the parent of `Integer`, and none of the other classes in the inheritance tree
+- `Positive` is next: it must come before its super-class.
+- The rest of the MRO should be self explanatory.
+- The final point to note about the `__mro__` attribute is that it is read-only: this is one of the few things we can't directly interfere with.
+
+---
+
+```python
+class Sized(Descriptor):
+	def __init__(self, *args, max_length, **kwargs):
+		self.max_length = max_length
+		super().__init__(*args, **kwargs)
+
+	def __set__(self, instance, value, /):
+		assert len(value) <= self.max_length
+		super().__set__(instance, value)
+
+class SizedString(String, Sized):
+	pass
+```
+
+```python
+class Host(Structure):
+	__fields__ = ['address', 'port']
+	address = SizedString('address', 15)
+	port = PositiveInteger('port')
+```
+
+notes:
+- We implement `Sized` as a descriptor which takes a parameter: the maximum length the field may take
+- We then create `SizedString` using a similar method to `PositiveInteger`.
+- Remaking the `Host` class, we can start to introduce more constraints.
+	- We're assuming that address is a valid IPv4 address, so it can be no longer than 15 characters
+	- The port can't be less than 0, so we apply that constraint.
+	- We could create a class `RangedInteger` that allows us to specify an upper bound on the value to prevent the port number from growing to large. I'll leave you to try that if you want later to practice what we've covered.
+
+---
+
+```python
+import re
+
+class Regex(Descriptor):
+	def __init__(self, *args, pattern, **kwargs):
+		self.pattern = re.compile(pattern)
+		super().__init__(*args, **kwargs)
+
+	def __set__(self, instance, value, /):
+		assert self.pattern.match(value)
+		super().__set__(instance, value)
+```
+
+```python
+class RegexString(String, Regex):
+	pass
+	
+class SizedRegexString(SizedString, Regex):
+	pass
+```
+
+notes:
+- Given we want to ensure that address is a valid IPv4 address, it would be useful if we could check the structure of the string.
+- Enter regex!
+- This is again a simple decorator which ensures the value matches the provided pattern before continuing.
+- As before, we create classes to handle `RegexString`'s and `SizedRegexString`'s.
+	- For `SizedRegexString`, we inherit first from `SizedString` and then `Regex` as a little optimisation: it will let us check the length of the value before pattern matching.
+	- If we have an invalid length, we would have to error anyway, so why bother running through the state machine of regex?
+
+---
+
+```python
+class Host(Structure):
+	__fields__ = 'address', 'port'
+	address = SizedRegexString(
+		'address', max_length=15,
+		pattern=r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+	)
+	port = PositiveInteger('port')
+
+>>> host = Host('127.0.0.1', 8000)
+>>> host.address = 'example.com'
+Error ...
+```
+
+notes:
+- This is certainly an improvement from before.
+- Not only can we guarantee that values are of the correct type, but we can also guarantee that they are valid.
+- However, there's still lots of repetition:
+	- 
