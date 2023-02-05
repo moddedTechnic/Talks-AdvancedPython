@@ -1535,4 +1535,284 @@ notes:
 - This is certainly an improvement from before.
 - Not only can we guarantee that values are of the correct type, but we can also guarantee that they are valid.
 - However, there's still lots of repetition:
-	- 
+	- We have to specify each field name three times
+
+---
+
+```python
+from collections import OrderedDict
+
+class StructureMeta(type):
+	@classmethod
+	def __prepare__(mcs, name, bases):
+		return OrderedDict()
+```
+
+notes:
+- We'll fix this by altering our `StructureMeta` class
+- First, we want to add a `__prepare__` method to specify the container for the namespace.
+	- We use `OrderedDict` so that we can preserve the order items are defined in.
+
+---
+
+```python
+	...
+	def __new__(mcs, name, bases, namespace, **kwds):
+		fields = [
+			k for k, v in namespace.items()
+			if isinstance(v, Descriptor)
+		]
+		for name in fields:
+			namespace[name].name = name
+		cls = super().__new__(
+			mcs, name, bases, namespace, **kwds
+		)
+		cls.__signature__ = make_signature(fields)
+		cls.__fields__ = fields
+		return cls
+```
+
+notes:
+- We first iterate over all the items in the namespace, saving names which point to `Descriptor`'s as these are the fields of the `Structure`.
+- We then need to set the names of the descriptors: this is why the initialiser in `Descriptor` provided a default value of `name`
+- As before, we then create the signature, and finally add the fields to the structure
+
+---
+
+```python
+class Host(Structure):
+	address = SizedRegexString(
+		max_length=15,
+		pattern=r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+	)
+	port = PositiveInteger()
+
+class Point(Structure):
+	x = Float()
+	y = Float()
+	z = Float()
+```
+
+notes:
+- Bringing back our example structures, we can see how much boilerplate we have been able to remove.
+- Beyond just removing boilerplate, we have now added runtime type- and value-safety
+- Everything seems to be going well.
+- You can see the progress bar along the bottom, why are there so many slides left?
+
+---
+
+| Test              | Simple Class | Meta-Structure | Increase |
+| ----------------- | ------------ | -------------- | -------- |
+| `h = Host(...)`   | 0.181        | 4.059         | 22.43    |
+| `h.port`          | 0.024        | 0.026          | 1.08     |
+| `h.port = 3000`   | 0.032        | 0.470          | 14.69    |
+| `h.address = ...` | 0.032        | 0.984          | 30.75    |
+<!-- TBLFM: @I$>..@>$>=($-1 / $-2);%.2f -->
+
+_Times in seconds_
+
+notes:
+- That's not great...
+- Creating the instance is 22 times slower using the structure definition...
+- Setting even a simple field is 15 times slower, and 30 times if we want to be able to check the string value against a regex...
+- There is one shining light: getting the value of a field is about as fast in both
+	- That was the one we didn't change...
+
+---
+
+# Why?
+
+## Signature Enforcement <!-- element class="fragment" -->
+## Multiple Inheritance <!-- element class="fragment" -->
+
+notes:
+- So why is it so slow?
+- We have introduced some significant bottlenecks:
+	- It's expensive to enforce the signatures, that all members stay valid
+	- The multiple inheritance in the descriptors requires Python to jump all over the place to follow the MRO.
+
+---
+
+# Code Generation <!-- element class="fragment" -->
+
+notes:
+- So, how can we fix this?
+- The answer: code generation.
+- Doing this, we can move a lot of iteration and other processing to happen once during class declaration.
+
+---
+
+```python
+def _make_init(fields):
+	code = f'def __init__(self, {", ".join(fields)}):\n'
+	for name in fields:
+		code += f'    self.{name} = {name}\n'
+	return code
+```
+
+notes:
+- We define a function to create the code for an initialiser from the given fields.
+- This will prevent us from needing to use `inspect` to generate and enforce signatures.
+
+---
+
+```python
+class StructureMeta(type):
+	...
+	def __new__(mcs, name, bases, namespace, **kwds):
+		fields = [
+			k for k, v in namespace.items()
+			if isinstance(v, Descriptor)
+		]
+		for name in fields:
+			namespace[name].name = name
+		if fields:
+			exec(_make_init(fields), globals(), namespace)
+		namespace['__fields__'] = fields
+		return super().__new__(
+			mcs, name, bases, namespace, **kwds)
+```
+
+```python
+class Structure(metaclass=StructureMeta):
+	pass
+```
+
+notes:
+- We alter the constructor of `StructureMeta` to create an initialiser based on the fields, placing it into the class namespace when done.
+- We've moved `__fields__` to be put into the namespace, rather than adding it to the generated class. There's no real difference.
+- We can now clear the body of `Structure`: there's nothing to be done here anymore as the metaclass generates everything.
+
+---
+
+| Test              | Meta-Structure | Code Gen | Increase |
+| ----------------- | -------------- | -------- | -------- |
+| `h = Host(...)`   | 4.059          | 1.779    | 0.44     |
+| `h.port`          | 0.025          | 0.025    | 1.00     |
+| `h.port = 3000`   | 0.470          | 0.474    | 1.01     |
+| `h.address = ...` | 0.984          | 1.020    | 1.04     |
+<!-- TBLFM: @I$>..@>$>=($-1 / $-2);%.2f -->
+
+_Times in seconds_
+
+notes:
+- This hasn't changed the performance of many of the field, but we have managed to cut the initialiser time in half by removing the signature binding.
+- Pretty impressive for such a small change, could we take it further?
+
+---
+
+```python
+class Descriptor(metaclass=DescriptorMeta):
+	...
+	@staticmethod
+	def set_code():
+		return ['instance.__dict__[self.name] = value']
+```
+
+```python
+class Typed(Descriptor):
+	typ = object
+
+	@staticmethod
+	def set_code():
+		return ['assert isinstance(value, self.typ)']
+```
+
+```python
+class Positive(Descriptor):
+	@staticmethod
+	def set_code():
+		return ['assert value < 0']
+```
+
+notes:
+- We alter the descriptors, replacing their `__set__` methods with `set_code`.
+- This new method simply returns a list of the lines of code to be executed when the `__set__` is invoked.
+- We need to reformulate all the descriptors in this way
+- We'll define `DescriptorMeta` in a moment,
+
+---
+
+```python
+def _make_setter(descriptor_cls):
+	code = 'def __set__(self, instance, value, /):\n'
+	for cls in descriptor_cls.__mro__:
+		if 'set_code' in cls.__dict__:
+			for line in cls.set_code():
+				code += f'    {line}\n'
+	return code
+```
+
+notes:
+- We define the function `_make_setter`, which takes a descriptor class
+- We iterate over the MRO and add each line of setter code to the growing function definition
+
+---
+
+```python
+class DescriptorMeta(type):
+	def __init__(cls, name, bases, namespace, **kwds):
+		assert '__set__' not in namespace
+		exec(_make_setter(cls), globals(), namespace)
+		cls.__set__ = namespace['__set__']
+```
+
+notes:
+- We define the `DescriptorMeta` to have an initialiser which generates and applies the setter.
+- We place this in the initialiser as opposed to the constructor, as we don't need to mess with the construction of the class.
+- Being in the initialiser (where the class itself is initialised, and not an instance), we get given the class to operate on.
+- This just makes it a simpler method to write in this case - you wouldn't typically write a constructor for a normal class if an initialiser will do.
+
+---
+
+| Test              | Simple Class | Meta-Structure | Code Gen.  |
+| ----------------- | ------------ | -------------- | ----- |
+| `h = Host(...)`   | 0.181        | 4.059          | 0.826 |
+| `h.port`          | 0.024        | 0.026          | 0.023 |
+| `h.port = 3000`   | 0.032        | 0.470          | 0.169 |
+| `h.address = ...` | 0.032        | 0.984          | 0.436 | 
+
+_Times in seconds_
+
+notes:
+- As you can see, using code generation has sped the structure up quite significantly.
+- Whilst it is still an order of magnitude slower than the simple class, we've managed to include a significant amount of safety checks on the data which aren't free.
+- It's beyond the scope of this talk, but if there's interest, we might revisit this in the future to look at optimising things further.
+
+---
+
+# `exec`?
+
+notes:
+- Aren't we told to avoid exec?
+- Isn't it dangerous?
+- What about malicious code?
+
+---
+
+![[Excalidraw/library.excalidraw.svg]]
+
+notes:
+- As we're looking at things from the perspective of a library developer, we can be a little more relaxed about these things.
+	- That's why we're using techniques like metaclasses and descriptors in the first place.
+- That doesn't mean you can throw security out of the window: don't read text from a random URL and execute it.
+- What it does mean is we can generate our own code and execute it.
+
+---
+
+# Summary
+
+```python
+class Host(Structure):
+	address = SizedRegexString(
+		max_length=15,
+		pattern=r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+	)
+	port = PositiveInteger()
+
+class Point(Structure):
+	x = Float()
+	y = Float()
+	z = Float()
+```
+<!-- element class="fragment" -->

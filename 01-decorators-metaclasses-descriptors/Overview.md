@@ -619,12 +619,14 @@ class Person(Structure):
 
 ## Test results
 #TODO Populate test results
+
 | Test | Simple | Meta |
 | --- | --- | --- |
 | Instance creation `p = Person('Fred', 21, [])` | | |
 | Attribute lookup `p.age` | | |
 | Attribute assignment `p.age = 22` | | |
 | Attribute assignment `p.name = 'Gertrude'` | | |
+
 - Display results on graph
 
 ## Reflection
@@ -662,11 +664,13 @@ class Structure(metaclass=StructMeta):
 ```
 
 #TODO  Add timings
-| Structure type | Time |
-| --- | --- |
-| Simple | |
-| Old Metaclass (signatures) | |
-| New Metaclass (exec) | |
+
+| Structure type             | Time |
+| -------------------------- | ---- |
+| Simple                     |      |
+| Old Metaclass (signatures) |      |
+| New Metaclass (exec)       |      |
+
 - Display results on graph
 
 ## Setters
@@ -737,12 +741,14 @@ class DescriptorMeta(type):
 - User code doesn't need to change - this code generation is an implementation detail of descriptors
 
 #TODO Populate test results
-| Test | Simple | Meta | Exec |
-| --- | --- | --- | --- |
-| Instance creation `p = Person('Fred', 21, [])` | | | |
-| Attribute lookup `p.age` | | | |
-| Attribute assignment `p.age = 22` | | | |
-| Attribute assignment `p.name = 'Gertrude'` | | | |
+
+| Test                                           | Simple | Meta | Exec |
+| ---------------------------------------------- | ------ | ---- | ---- |
+| Instance creation `p = Person('Fred', 21, [])` |        |      |      |
+| Attribute lookup `p.age`                       |        |      |      |
+| Attribute assignment `p.age = 22`              |        |      |      |
+| Attribute assignment `p.name = 'Gertrude'`     |        |      |      |
+
 - Display results on graph
 
 - Advice is often given to avoid using `exec` as it can be dangerous
