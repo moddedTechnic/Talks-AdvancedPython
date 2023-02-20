@@ -1345,6 +1345,14 @@ notes:
 
 ---
 
+# Advanced Python
+
+#### Decorators and Metaclasses and Descriptors &mdash; Oh My!
+
+### Part 2
+
+---
+
 ```python
 class Typed(Descriptor):
 	typ = object
