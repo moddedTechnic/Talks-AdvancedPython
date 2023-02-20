@@ -34,8 +34,6 @@ Python 3.8
 [talks.leeming.dev/#advanced-python--01-decorators-metaclasses-descriptors](https://talks.leeming.dev/#advanced-python--01-decorators-metaclasses-descriptors)
 
 notes:
-- #TODO fill in GitHub link
-- #TODO check Python version
 
 ---
 
@@ -1345,14 +1343,6 @@ notes:
 
 ---
 
-# Advanced Python
-
-#### Decorators and Metaclasses and Descriptors &mdash; Oh My!
-
-### Part 2
-
----
-
 ```python
 class Typed(Descriptor):
 	typ = object
@@ -1423,8 +1413,7 @@ notes:
 
 ---
 
-#TODO re-add angle brackets round split
-split even gap="1"
+<split even gap="1">
 
 ```python
 class PositiveInteger(Integer, Positive):
